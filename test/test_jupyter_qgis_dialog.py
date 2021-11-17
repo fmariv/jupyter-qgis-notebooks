@@ -16,7 +16,7 @@ import unittest
 
 from qgis.PyQt.QtGui import QDialogButtonBox, QDialog
 
-from jupyter_qgis_dialog import JupyterQGISDialog
+from jupyter_qgis_notebook_dialog import JupyterQGISDialog
 
 from utilities import get_qgis_app
 QGIS_APP = get_qgis_app()
