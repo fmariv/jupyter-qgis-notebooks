@@ -20,6 +20,14 @@
  *                                                                         *
  ***************************************************************************/
 """
+
+import os.path
+from subprocess import call
+import pkg_resources
+import sys
+
+from qgis.core import Qgis, QgsMessageLog
+
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
@@ -28,7 +36,6 @@ from qgis.PyQt.QtWidgets import QAction
 from .resources import *
 # Import the code for the dialog
 from .jupyter_qgis_notebook_dialog import JupyterQGISNotebookDialog
-import os.path
 
 
 class JupyterQGISNotebook:
@@ -62,9 +69,12 @@ class JupyterQGISNotebook:
         self.actions = []
         self.menu = self.tr(u'&Jupyter QGIS')
 
-        # Check if plugin was started the first time in current QGIS session
-        # Must be set in initGui() to survive plugin reloads
-        self.first_start = None
+        # ###
+        self.osgeo_path = os.path.join(os.environ['OSGEO4W_ROOT'], 'OSGEO4W.bat')
+        self.run_bat = os.path.join(os.path.join(os.path.dirname(__file__), 'run-notebook.bat'))
+        self.installer_call = [self.osgeo_path, f'cd {os.path.dirname(__file__)} && '
+                                                f'py3_env && '
+                                                f'python -m pip install jupyter']
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -178,19 +188,41 @@ class JupyterQGISNotebook:
 
     def run(self):
         """Run method that performs all the real work"""
+        # Check if the Jupyter package is already installed in the python environment or not. If not,
+        # run the installer. If it is, run the notebook
+        installed_packages = pkg_resources.working_set
+        installed_packages_list = sorted([i.key for i in installed_packages])
 
-        # Create the dialog with elements (after translation) and keep reference
-        # Only create GUI ONCE in callback, so that it will only load when the plugin is started
-        if self.first_start == True:
-            self.first_start = False
-            self.dlg = JupyterQGISNotebookDialog()
+        if 'jupyter' in installed_packages_list:
+            # Jupyter is installed
+            try:
+                call(self.run_bat)   # FIXME QGIS peta cuando se inicia
+            except Exception as e:
+                self.show_error_message('There has been an error during the Jupyter Notebook launching process. '
+                                        'See the QGIS log for further information')
+                QgsMessageLog.logMessage(e)
+        else:
+            # Jupyter is not installed
+            try:
+                call(self.installer_call)
+                self.show_success_message('Jupyter Notebook environment correctly installed')
+                # Restart QGIS to reload the environment's intalled packages
+                os.execl(sys.executable, sys.executable, *sys.argv)   # TODO test
+            except Exception as e:
+                self.show_error_message('There has been an error during the Jupyter Notebook installing process. '
+                                        'See the QGIS log for further information')
+                QgsMessageLog.logMessage(e)
 
-        # show the dialog
-        self.dlg.show()
-        # Run the dialog event loop
-        result = self.dlg.exec_()
-        # See if OK was pressed
-        if result:
-            # Do something useful here - delete the line containing pass and
-            # substitute with your code.
-            pass
+    # #################################################
+    # QGIS Messages
+    def show_success_message(self, text):
+        """ Show a QGIS success message """
+        self.iface.messageBar().pushMessage('OK', text, level=Qgis.Success)
+
+    def show_error_message(self, text):
+        """ Show a QGIS error message """
+        self.iface.messageBar().pushMessage('Error', text, level=Qgis.Critical)
+
+    def show_warning_message(self, text):
+        """ Show a QGIS warning message """
+        self.iface.messageBar().pushMessage('Warning', text, level=Qgis.Warning)

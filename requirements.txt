@@ -1,4 +1,0 @@
-jupyter
-ipykernel
-jupyter_client
-nbconvert
