@@ -25,6 +25,7 @@
 import os.path
 from subprocess import call
 import pkg_resources
+import platform
 import sys
 
 try:
@@ -39,6 +40,12 @@ except:
     from PyQt4.QtCore import QSettings, QTranslator, QCoreApplication
     from PyQt4.QtGui import QIcon
     from PyQt4.QtWidgets import QAction
+
+
+PLATFORM = platform.system()
+
+# TODO test in Linux
+# TODO test in MacOS
 
 
 class JupyterQGISNotebook:
@@ -72,13 +79,25 @@ class JupyterQGISNotebook:
         self.actions = []
         self.menu = self.tr(u'&Jupyter QGIS Notebook')
 
-        # ###
+        # OSGeo4W Shell path
         self.osgeo_env_path = os.path.join(os.environ['OSGEO4W_ROOT'], 'OSGEO4W.bat')
-        self.run_bat = [os.path.join(os.path.join(os.path.dirname(__file__), 'scripts/run-notebook.bat')),
-                        self.osgeo_env_path]
-        self.installer_call = [self.osgeo_env_path, f'cd {os.path.dirname(__file__)} && '
-                                                    f'py3_env && '
-                                                    f'python -m pip install jupyter']
+
+        # Installer command calls
+        if PLATFORM.startswith('Windows'):
+            self.installer_call = [self.osgeo_env_path, f'cd {os.path.dirname(__file__)} && '
+                                                        f'py3_env && '
+                                                        f'python -m pip install jupyter']
+        elif PLATFORM.startswith('Linux'):
+            self.installer_call = ['sudo apt-get update ; '
+                                   'sudo apt-get -y install ipython ipython-notebook ; '
+                                   'sudo -H pip install jupyter']
+
+        # Run command calls
+        if PLATFORM.startswith('Windows'):
+            self.run_call = [os.path.join(os.path.join(os.path.dirname(__file__), 'scripts/run-notebook.bat')),
+                             self.osgeo_env_path]
+        elif PLATFORM.startswith('Linux'):
+            self.run_call = ['jupyter notebook']
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -200,7 +219,7 @@ class JupyterQGISNotebook:
         if 'jupyter' in installed_packages_list:
             # Jupyter is installed
             try:
-                call(self.run_bat)   # FIXME QGIS crashes when run
+                call(self.run_call)   # FIXME QGIS crashes when run
             except Exception as e:
                 self.show_error_message('There has been an error during the Jupyter Notebook launching process. '
                                         'See the QGIS log for further information')
@@ -230,3 +249,7 @@ class JupyterQGISNotebook:
     def show_warning_message(self, text):
         """ Show a QGIS warning message """
         self.iface.messageBar().pushMessage('Warning', text, level=Qgis.Warning)
+
+
+if __name__ == '__main__':
+    pass
