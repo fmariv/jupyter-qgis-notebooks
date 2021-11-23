@@ -1,6 +1,5 @@
 @echo off
-call "%~dp0\o4w_env.bat"
-call "%OSGEO4W_ROOT%\apps\grass\grass76\etc\env.bat"
+call "%OSGEO4W_ROOT%\apps\grass\grass78\etc\env.bat"
 call qt5_env.bat
 call py3_env.bat
 @echo off
