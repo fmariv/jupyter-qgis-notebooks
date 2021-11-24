@@ -46,6 +46,7 @@ PLATFORM = platform.system()
 
 # TODO test in Linux
 # TODO test in MacOS
+# TODO what to do when the OSGEO4W_ROOT environment variable is not defined
 
 
 class JupyterQGISNotebook:
@@ -79,25 +80,31 @@ class JupyterQGISNotebook:
         self.actions = []
         self.menu = self.tr(u'&Jupyter QGIS Notebook')
 
-        # OSGeo4W Shell path
-        self.osgeo_env_path = os.path.join(os.environ['OSGEO4W_ROOT'], 'OSGEO4W.bat')
+        # #######################
+        # Paths
+        # ###########
+        # OSGeo4W Shell
+        self.osgeo_shell_path = os.path.join(os.environ['OSGEO4W_ROOT'], 'OSGEO4W.bat')
+        # Installers
+        self.windows_installer_path = os.path.join(self.plugin_dir, 'scripts/windows/install-notebook.sh')
+        self.linux_installer_path = os.path.join(self.plugin_dir, 'scripts/linux/install-notebook.sh')
+        # Launchers
+        self.windows_launcher_path = os.path.join(self.plugin_dir, 'scripts/windows/run-notebook.bat')
+        self.linux_launcher_path = os.path.join(self.plugin_dir, 'scripts/linux/run-notebook.sh')
 
+        # #######################
+        # Calls
+        # ###########
         # Installer command calls
         if PLATFORM.startswith('Windows'):
-            self.installer_call = [self.osgeo_env_path, f'cd {os.path.dirname(__file__)} && '
-                                                        f'py3_env && '
-                                                        f'python -m pip install jupyter']
+            self.installer_call = [self.osgeo_shell_path, self.windows_installer_path]
         elif PLATFORM.startswith('Linux'):
-            self.installer_call = ['sudo apt-get update ; '
-                                   'sudo apt-get -y install ipython ipython-notebook ; '
-                                   'sudo -H pip install jupyter']
-
-        # Run command calls
+            self.installer_call = [self.linux_installer_path]
+        # Launcher command calls
         if PLATFORM.startswith('Windows'):
-            self.run_call = [os.path.join(os.path.join(os.path.dirname(__file__), 'scripts/run-notebook.bat')),
-                             self.osgeo_env_path]
+            self.run_call = [self.windows_launcher_path]
         elif PLATFORM.startswith('Linux'):
-            self.run_call = ['jupyter notebook']
+            self.run_call = [self.linux_launcher_path]
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -189,7 +196,7 @@ class JupyterQGISNotebook:
         return action
 
     def initGui(self):
-        """Create the menu entries and toolbar icons inside the QGIS GUI."""
+        """ Create the menu entries and toolbar icons inside the QGIS GUI """
 
         icon_path = os.path.join(os.path.join(os.path.dirname(__file__), 'icon.png'))
         self.add_action(
@@ -202,7 +209,7 @@ class JupyterQGISNotebook:
         self.first_start = True
 
     def unload(self):
-        """Removes the plugin menu item and icon from QGIS GUI."""
+        """ Removes the plugin menu item and icon from QGIS GUI """
         for action in self.actions:
             self.iface.removePluginMenu(
                 self.tr(u'&Jupyter QGIS Notebook'),
@@ -210,7 +217,7 @@ class JupyterQGISNotebook:
             self.iface.removeToolBarIcon(action)
 
     def run(self):
-        """Run method that performs all the real work"""
+        """ Run method that performs all the real work """
         # Check if the Jupyter package is already installed in the python environment or not. If not,
         # run the installer. If it is, run the notebook
         installed_packages = pkg_resources.working_set
@@ -219,7 +226,7 @@ class JupyterQGISNotebook:
         if 'jupyter' in installed_packages_list:
             # Jupyter is installed
             try:
-                call(self.run_call)   # FIXME QGIS crashes when run
+                call(self.run_call)   # FIXME QGIS crashes when run, not working when OSGEO4W_ROOT not defined
             except Exception as e:
                 self.show_error_message('There has been an error during the Jupyter Notebook launching process. '
                                         'See the QGIS log for further information')
@@ -230,7 +237,7 @@ class JupyterQGISNotebook:
                 call(self.installer_call)
                 self.show_success_message('Jupyter Notebook environment correctly installed')
                 # Restart QGIS to reload the environment's intalled packages
-                os.execl(sys.executable, sys.executable, *sys.argv)   # TODO test
+                # os.execl(sys.executable, sys.executable, *sys.argv)   # FIXME not working
             except Exception as e:
                 self.show_error_message('There has been an error during the Jupyter Notebook installing process. '
                                         'See the QGIS log for further information')
